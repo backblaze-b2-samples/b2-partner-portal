@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Backblaze Partner Portal</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🔥</span>
+      <span>Partner Portal</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-link" data-view="dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+
+      <div class="nav-section" style="margin-top:12px">B2 Partner API</div>
+      <div class="nav-link" data-view="groups">
+        <span class="nav-icon">🗂️</span> Groups
+      </div>
+      <div class="nav-link" data-view="members">
+        <span class="nav-icon">👥</span> Members
+      </div>
+      <div class="nav-link" data-view="reports">
+        <span class="nav-icon">📈</span> Usage Reports
+      </div>
+
+      <div class="nav-section" style="margin-top:12px" id="admin-section">Admin</div>
+      <div class="nav-link" data-view="users" id="nav-users">
+        <span class="nav-icon">🔑</span> Portal Users
+      </div>
+      <div class="nav-link" data-view="roles" id="nav-roles">
+        <span class="nav-icon">🛡️</span> Roles
+      </div>
+      <div class="nav-link" data-view="settings" id="nav-settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+      <div class="nav-link" data-view="credentials" id="nav-credentials">
+        <span class="nav-icon">🔐</span> Credential Vault
+      </div>
+      <div class="nav-link" data-view="audit" id="nav-audit">
+        <span class="nav-icon">📋</span> Audit Log
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebar-email">—</div>
+      <div class="sidebar-role" id="sidebar-role">—</div>
+      <button class="btn btn-sm" id="logout-btn" style="width:100%;justify-content:center">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <div id="page-content">
+      <div class="empty-state"><div class="spinner"></div></div>
+    </div>
+  </main>
+</div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

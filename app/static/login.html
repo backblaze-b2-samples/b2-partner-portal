@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login — Backblaze Partner Portal</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">🔥</div>
+      <h1>Partner Portal</h1>
+      <p class="text-muted" style="font-size:0.85rem;margin-top:4px">Backblaze B2 Management</p>
+    </div>
+
+    <div id="error-msg" class="alert alert-error" style="display:none"></div>
+
+    <!-- SSO button — shown only when OIDC is configured -->
+    <div id="sso-section" style="display:none;margin-bottom:20px">
+      <a id="sso-btn" href="/api/auth/oidc/login" class="btn btn-primary" style="width:100%;justify-content:center;display:flex">
+        Sign in with SSO
+      </a>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:20px;margin-bottom:4px">
+        <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+        <span style="font-size:0.78rem;color:var(--text-muted)">or sign in with local account</span>
+        <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+      </div>
+    </div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" placeholder="admin@example.com" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" id="submit-btn">
+        Sign In
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+(async function () {
+  // ── Handle SSO callback ───────────────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  if (params.get('sso') === '1') {
+    const exchangeCode = params.get('code');
+    const ssoError     = params.get('error');
+
+    if (exchangeCode) {
+      // Exchange the one-time code for tokens via POST (keeps tokens out of URLs/logs)
+      try {
+        const res  = await fetch('/api/auth/oidc/exchange', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ code: exchangeCode }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Exchange failed');
+        localStorage.setItem('access_token',  data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        window.location.href = '/';
+        return;
+      } catch (ex) {
+        const errEl = document.getElementById('error-msg');
+        errEl.textContent = `SSO login failed: ${ex.message}`;
+        errEl.style.display = 'block';
+      }
+    }
+
+    if (ssoError) {
+      const errEl = document.getElementById('error-msg');
+      const msgs = {
+        invalid_state:   'SSO login failed: session expired or invalid state. Please try again.',
+        token_error:     'SSO login failed: could not validate identity token.',
+        no_email:        'SSO login failed: your Azure account has no email address.',
+        no_role:         'SSO login failed: your Azure groups are not mapped to any portal role. Contact your administrator.',
+        invalid_role:    'SSO login failed: the mapped role no longer exists. Contact your administrator.',
+      };
+      errEl.textContent = msgs[ssoError] || `SSO error: ${ssoError}`;
+      errEl.style.display = 'block';
+    }
+  }
+
+  // ── Check if OIDC is configured and show SSO button ─────────────────────────
+  try {
+    const res = await fetch('/api/auth/oidc/status');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.enabled) {
+        document.getElementById('sso-section').style.display = 'block';
+        document.getElementById('sso-btn').textContent = data.button_label || 'Sign in with SSO';
+      }
+    }
+  } catch (_) { /* OIDC status unavailable — ignore */ }
+})();
+
+// ── Local login ───────────────────────────────────────────────────────────────
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const err = document.getElementById('error-msg');
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  err.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:    document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    window.location.href = '/';
+  } catch (ex) {
+    err.textContent = ex.message;
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+});
+</script>
+</body>
+</html>

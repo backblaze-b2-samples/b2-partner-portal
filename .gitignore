@@ -1,0 +1,14 @@
+venv/
+data/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.claude/
+*.png
+*.jpg
+*.jpeg
