@@ -23,7 +23,7 @@ You can expect an acknowledgement within **5 business days** and an update on th
 
 This policy covers the code in this repository. It does not cover:
 
-- The Backblaze B2 service or Partner API themselves (report those to security@backblaze.com)
+- The Backblaze B2 service or Partner API themselves
 - Third-party dependencies (report those upstream)
 - Vulnerabilities that require physical access to the server
 
