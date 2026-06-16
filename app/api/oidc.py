@@ -164,10 +164,18 @@ async def oidc_callback(
     now = _now()
     ip  = request.client.host if request.client else ""
     async with get_db() as db:
-        cursor = await db.execute("SELECT id FROM users WHERE email=?", [email])
+        cursor = await db.execute("SELECT id, auth_source FROM users WHERE email=?", [email])
         existing = await cursor.fetchone()
 
         if existing:
+            # Prevent SSO from silently taking over a pre-existing local account.
+            # An admin must explicitly link the account first (by setting auth_source
+            # to 'sso' or deleting and re-provisioning via SSO).
+            if existing["auth_source"] == "local":
+                return RedirectResponse(
+                    f"/login?sso=1&error=account_conflict",
+                    status_code=302,
+                )
             user_id = existing["id"]
             await db.execute(
                 "UPDATE users SET role_id=?, auth_source='sso', updated_at=?, last_login_at=? WHERE id=?",

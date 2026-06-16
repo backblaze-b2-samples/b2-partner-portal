@@ -55,6 +55,9 @@ async def aggregate_usage(
     )
 
 
+_MAX_FETCH_RANGE_DAYS = 90
+
+
 @router.post("/fetch-range")
 async def fetch_reports_range(
     start_date: str = Query(...),
@@ -69,6 +72,8 @@ async def fetch_reports_range(
         raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD.")
     if sd > ed:
         raise HTTPException(400, "start_date must be <= end_date.")
+    if (ed - sd).days > _MAX_FETCH_RANGE_DAYS:
+        raise HTTPException(400, f"Date range cannot exceed {_MAX_FETCH_RANGE_DAYS} days.")
     return await fetch_date_range(request.app.state.b2_client, sd, ed)
 
 

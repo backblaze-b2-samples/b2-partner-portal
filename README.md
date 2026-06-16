@@ -42,6 +42,8 @@ Built with [FastAPI](https://fastapi.tiangolo.com/) and vanilla JavaScript. Desi
 - Rate limiting on all authentication endpoints
 - HSTS, X-Frame-Options, X-Content-Type-Options, and CSP security headers
 - Authorization headers masked in all logged API calls
+- OIDC `email_verified` enforcement — tokens with an explicitly unverified email are rejected
+- SSO account-takeover protection — SSO cannot silently merge into a pre-existing local account
 
 ---
 
@@ -189,6 +191,8 @@ The portal supports SSO via any standards-compliant OIDC provider — Azure Entr
 - **Group identifiers:** Azure sends group Object IDs (GUIDs). Okta and Keycloak typically send group names. Use whatever string your provider sends in the configured claim.
 - **Group claim limit:** Some providers (notably Azure) stop embedding groups in the token if a user belongs to more than ~150 groups, requiring a separate API call. If you hit this, configure a service account with Graph API access or reduce group memberships.
 - **Local account fallback:** Local username/password login always remains available, even when SSO is enabled. Keep at least one local admin account as a recovery option in case your identity provider is unavailable.
+- **Email verification:** The portal rejects ID tokens where `email_verified` is explicitly `false`. Providers that omit the claim (Azure, Google) are accepted — they verify addresses at the directory level. Providers that allow unverified addresses (some Okta/Cognito configurations) will be blocked until the user verifies their email with the IdP.
+- **Account conflict protection:** SSO cannot take over a pre-existing local account. If a local account already exists for the SSO email, login is blocked with an `account_conflict` error. To migrate a local user to SSO: remove the local account in **Portal Users**, then have the user log in via SSO to re-provision.
 
 ---
 

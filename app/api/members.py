@@ -147,6 +147,8 @@ async def bulk_create_members(
 
     if not rows:
         raise HTTPException(400, "CSV is empty")
+    if len(rows) > 500:
+        raise HTTPException(400, "CSV cannot exceed 500 rows per import.")
     if "email" not in (reader.fieldnames or []):
         raise HTTPException(400, "CSV must have an 'email' column")
 

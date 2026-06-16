@@ -105,9 +105,21 @@ async def decode_id_token(id_token: str, issuer_url: str, client_id: str) -> dic
     return claims
 
 
-def extract_email(claims: dict) -> str:
-    # `email` is standard; `preferred_username` is Azure's fallback
-    return (claims.get("email") or claims.get("preferred_username") or "").lower().strip()
+def extract_email(claims: dict) -> str | None:
+    """Return the verified email from the ID token, or None if unverifiable.
+
+    Rejects tokens where email_verified is explicitly False. Tokens that omit
+    email_verified entirely (e.g. Azure, which pre-verifies at the directory
+    level) are accepted — the claim is only present and False on providers that
+    allow unverified addresses (e.g. some Okta or Cognito configurations).
+    """
+    # email_verified absent → treat as verified (Azure, Google omit it when verified)
+    # email_verified present and False → reject
+    email_verified = claims.get("email_verified")
+    if email_verified is False:
+        return None
+
+    return (claims.get("email") or claims.get("preferred_username") or "").lower().strip() or None
 
 
 def extract_groups(claims: dict, groups_claim: str = "groups") -> list[str]:

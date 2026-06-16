@@ -4,6 +4,7 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", ""}
+_INSECURE_PASSWORDS = {"changeme123", "changeme", "password", "admin", "admin123", ""}
 
 
 class Settings(BaseSettings):
@@ -32,6 +33,20 @@ class Settings(BaseSettings):
     # Created on first startup when no users exist
     initial_admin_email: str = "admin@example.com"
     initial_admin_password: str = "changeme123"
+
+    @field_validator("initial_admin_password")
+    @classmethod
+    def initial_admin_password_must_be_strong(cls, v: str) -> str:
+        if v in _INSECURE_PASSWORDS or len(v) < 12:
+            raise ValueError(
+                "\n\n"
+                "  *** STARTUP ABORTED ***\n"
+                "  INITIAL_ADMIN_PASSWORD is too weak or is the default value.\n"
+                "  Set a strong password (12+ characters) in your .env file:\n\n"
+                "    INITIAL_ADMIN_PASSWORD=<your-secure-password>\n\n"
+                "  This is only used to create the initial admin account on first run.\n"
+            )
+        return v
 
     # JWT settings
     access_token_expire_minutes: int = 15

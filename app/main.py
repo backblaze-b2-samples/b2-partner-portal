@@ -191,7 +191,10 @@ async def login_page():
 
 @app.get("/reset-password")
 async def reset_password_page():
-    return FileResponse(str(_STATIC_DIR / "reset-password.html"))
+    resp = FileResponse(str(_STATIC_DIR / "reset-password.html"))
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @app.get("/{full_path:path}")

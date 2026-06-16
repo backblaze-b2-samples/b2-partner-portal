@@ -77,11 +77,12 @@
     if (ssoError) {
       const errEl = document.getElementById('error-msg');
       const msgs = {
-        invalid_state:   'SSO login failed: session expired or invalid state. Please try again.',
-        token_error:     'SSO login failed: could not validate identity token.',
-        no_email:        'SSO login failed: your Azure account has no email address.',
-        no_role:         'SSO login failed: your Azure groups are not mapped to any portal role. Contact your administrator.',
-        invalid_role:    'SSO login failed: the mapped role no longer exists. Contact your administrator.',
+        invalid_state:    'SSO login failed: session expired or invalid state. Please try again.',
+        token_error:      'SSO login failed: could not validate identity token.',
+        no_email:         'SSO login failed: your identity provider did not supply a verified email address.',
+        no_role:          'SSO login failed: your groups are not mapped to any portal role. Contact your administrator.',
+        invalid_role:     'SSO login failed: the mapped role no longer exists. Contact your administrator.',
+        account_conflict: 'SSO login failed: a local account already exists for this email address. Contact your administrator to link your SSO identity.',
       };
       errEl.textContent = msgs[ssoError] || `SSO error: ${ssoError}`;
       errEl.style.display = 'block';

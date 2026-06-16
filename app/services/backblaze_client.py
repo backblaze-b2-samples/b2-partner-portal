@@ -37,6 +37,30 @@ def _mask_auth(headers: dict) -> dict:
     return out
 
 
+# Keys whose values should be masked in B2 API response bodies shown in the inspector.
+_SENSITIVE_RESPONSE_KEYS = {
+    "authorizationToken", "applicationKey", "masterApplicationKey",
+    "masterApplicationKeyId",
+}
+
+
+def _mask_response_body(body: dict | None) -> dict | None:
+    """Recursively mask known sensitive fields in a response body."""
+    if not isinstance(body, dict):
+        return body
+    out = {}
+    for k, v in body.items():
+        if k in _SENSITIVE_RESPONSE_KEYS and isinstance(v, str):
+            out[k] = v[:4] + "••••••••" + v[-4:] if len(v) > 8 else "••••••••"
+        elif isinstance(v, dict):
+            out[k] = _mask_response_body(v)
+        elif isinstance(v, list):
+            out[k] = [_mask_response_body(i) if isinstance(i, dict) else i for i in v]
+        else:
+            out[k] = v
+    return out
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -162,7 +186,7 @@ class BackblazeClient:
             request_headers=_mask_auth(headers),
             request_body=None,
             response_status=status,
-            response_body=body,
+            response_body=_mask_response_body(body),
             duration_ms=round(duration, 1),
         )
 
