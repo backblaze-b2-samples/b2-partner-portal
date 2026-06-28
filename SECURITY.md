@@ -8,7 +8,7 @@ This is an example/reference project. Security fixes are applied to the `main` b
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Use the **"Report a vulnerability"** button on the [Security tab](../../security/advisories/new) of this repository. This opens a private disclosure directly with the maintainers and allows you to attach proof-of-concept files safely.
+Use the **"Report a vulnerability"** button on the **Security tab** of this repository on GitHub (look for the "Security" tab at the top of the repo page, then click "Report a vulnerability"). This opens a private disclosure directly with the maintainers and allows you to attach proof-of-concept files safely.
 
 If you are unable to use that button, visit [backblaze.com/cloud-storage/security](https://www.backblaze.com/cloud-storage/security) for alternative reporting options.
 

@@ -21,18 +21,22 @@ export async function renderRoles(page) {
   `;
 
   document.getElementById('add-role-btn').addEventListener('click', () => showRoleForm());
+
+  page.querySelectorAll('[data-delete-role]').forEach(btn => {
+    btn.addEventListener('click', () => deleteRole(btn.dataset.deleteRole));
+  });
 }
 
 function roleCardHtml(r) {
   const isBuiltin = r.id === 'admin' || r.id === 'viewer';
   return `
-    <div class="card" id="role-card-${r.id}">
+    <div class="card" id="role-card-${esc(r.id)}">
       <div class="flex-between" style="margin-bottom:12px">
         <div>
           <strong>${esc(r.name)}</strong>
           <span class="badge badge-role" style="margin-left:8px">${esc(r.id)}</span>
         </div>
-        ${!isBuiltin ? `<button class="btn btn-danger btn-sm" onclick="deleteRole('${r.id}')">Delete</button>` : ''}
+        ${!isBuiltin ? `<button class="btn btn-danger btn-sm" data-delete-role="${esc(r.id)}">Delete</button>` : ''}
       </div>
       <p class="text-muted" style="font-size:0.8rem;margin-bottom:12px">${esc(r.description || '—')}</p>
       <div style="display:flex;flex-wrap:wrap;gap:4px">
@@ -123,14 +127,14 @@ async function saveRole(existing) {
   }
 }
 
-window.deleteRole = async (roleId) => {
+async function deleteRole(roleId) {
   if (!confirm(`Delete role "${roleId}"? This will fail if any users are assigned to it.`)) return;
   const res = await api(`/api/roles/${roleId}`, { method: 'DELETE' });
-  const data = await res?.json();
+  const data = await res?.json().catch(() => ({}));
   if (res?.ok) {
     document.getElementById(`role-card-${roleId}`)?.remove();
   } else {
     const resultDiv = document.getElementById('role-form-result');
     if (resultDiv) resultDiv.innerHTML = `<div class="alert alert-error">${esc(data?.detail || 'Delete failed')}</div>`;
   }
-};
+}

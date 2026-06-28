@@ -39,6 +39,18 @@ async def _audit(actor: CurrentUser | None, action: str, target_id: str,
         )
 
 
+async def _check_role_assignable(role_id: str, current_user: CurrentUser) -> None:
+    """Raise 403 if the target role has any permission the current user does not hold."""
+    async with get_db() as db:
+        cursor = await db.execute(
+            "SELECT permission FROM role_permissions WHERE role_id=?", [role_id]
+        )
+        rows = await cursor.fetchall()
+    target_perms = {r["permission"] for r in rows}
+    if not target_perms.issubset(set(current_user.permissions)):
+        raise HTTPException(403, "Cannot assign a role with permissions exceeding your own")
+
+
 async def _user_response(row) -> UserResponse:
     async with get_db() as db:
         cursor = await db.execute("SELECT name FROM roles WHERE id=?", [row["role_id"]])
@@ -70,6 +82,7 @@ async def list_users(_: CurrentUser = require_permission(USERS_READ)):
 @router.post("", response_model=UserResponse, status_code=201)
 async def create_user_endpoint(body: UserCreate, request: Request,
                                 current_user: CurrentUser = require_permission(USERS_WRITE)):
+    await _check_role_assignable(body.role_id, current_user)
     try:
         result = await create_user(body.email, body.password, body.role_id)
     except ValueError as e:
@@ -119,6 +132,9 @@ async def update_user(user_id: str, body: UserUpdate, request: Request,
     # Prevent users from changing their own role
     if user_id == current_user.id and body.role_id is not None:
         raise HTTPException(400, "Cannot change your own role")
+    # Privilege escalation guard: cannot grant permissions you don't hold
+    if body.role_id is not None:
+        await _check_role_assignable(body.role_id, current_user)
 
     async with get_db() as db:
         cursor = await db.execute("SELECT * FROM users WHERE id=?", [user_id])
@@ -184,7 +200,7 @@ async def bulk_import(request: Request, file: UploadFile = File(...),
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:  # 5 MB cap
         raise HTTPException(400, "CSV file too large (max 5 MB)")
-    result = await bulk_import_csv(content, importer_role_id=current_user.role_id)
+    result = await bulk_import_csv(content, importer_permissions=list(current_user.permissions))
     await _audit(current_user, "user.bulk_import", "",
                  {"created": result["created"], "skipped": result["skipped"],
                   "errors": len(result["errors"])}, request)

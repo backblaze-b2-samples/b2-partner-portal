@@ -33,7 +33,7 @@ async def create_user(email: str, password: str, role_id: str) -> dict:
         return {"id": user_id, "email": email, "role_id": role_id}
 
 
-async def bulk_import_csv(csv_bytes: bytes, importer_role_id: str = "") -> dict:
+async def bulk_import_csv(csv_bytes: bytes, importer_permissions: list[str] | None = None) -> dict:
     """
     Parse CSV with columns: email, role
     Returns {created, skipped, errors}
@@ -54,6 +54,7 @@ async def bulk_import_csv(csv_bytes: bytes, importer_role_id: str = "") -> dict:
     created = 0
     skipped = 0
     errors = []
+    importer_perm_set = set(importer_permissions or [])
 
     async with get_db() as db:
         for i, raw_row in enumerate(reader, start=2):  # row 1 is header
@@ -78,9 +79,13 @@ async def bulk_import_csv(csv_bytes: bytes, importer_role_id: str = "") -> dict:
                 errors.append({"row": i, "reason": f"Unknown role: {role_id}"})
                 continue
 
-            # Prevent privilege escalation: only admins can assign the admin role
-            if role_id == "admin" and importer_role_id != "admin":
-                errors.append({"row": i, "reason": "Only admins can assign the admin role"})
+            # Privilege escalation guard: target role permissions must be ⊆ importer's permissions
+            c2 = await db.execute(
+                "SELECT permission FROM role_permissions WHERE role_id=?", [role_id]
+            )
+            target_perms = {r["permission"] for r in await c2.fetchall()}
+            if not target_perms.issubset(importer_perm_set):
+                errors.append({"row": i, "reason": "Cannot assign a role with permissions exceeding your own"})
                 continue
 
             # Check email already exists

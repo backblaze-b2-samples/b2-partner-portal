@@ -6,7 +6,7 @@ Auth0, Keycloak, AWS Cognito, etc.
 from __future__ import annotations
 import time
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import aiohttp
 import jwt as _jwt
@@ -16,6 +16,21 @@ from jwt import PyJWKClient
 _discovery_cache: dict[str, tuple[dict, float]] = {}
 _jwks_clients:    dict[str, PyJWKClient] = {}
 _DISCOVERY_TTL = 3600   # re-fetch discovery doc at most once per hour
+
+
+def _require_same_origin(issuer_url: str, endpoint_url: str, label: str) -> None:
+    """Ensure a discovered endpoint shares the same HTTPS host as the issuer.
+
+    Prevents a compromised or malicious discovery document from redirecting
+    token requests to an attacker-controlled host (SSRF / open-redirect).
+    """
+    issuer  = urlparse(issuer_url)
+    endpoint = urlparse(endpoint_url)
+    if endpoint.scheme != "https" or endpoint.netloc != issuer.netloc:
+        raise RuntimeError(
+            f"OIDC {label} '{endpoint_url}' does not share the issuer host "
+            f"'{issuer.netloc}'. Discovery document may be misconfigured."
+        )
 
 
 async def _fetch_json(url: str) -> dict:
@@ -46,6 +61,7 @@ def _get_jwks_client(jwks_uri: str) -> PyJWKClient:
 
 async def build_auth_url(issuer_url: str, client_id: str, redirect_uri: str, state: str) -> str:
     doc = await get_discovery(issuer_url)
+    _require_same_origin(issuer_url, doc["authorization_endpoint"], "authorization_endpoint")
     params = {
         "client_id":     client_id,
         "response_type": "code",
@@ -65,6 +81,7 @@ async def exchange_code(
     code: str,
 ) -> dict[str, Any]:
     doc = await get_discovery(issuer_url)
+    _require_same_origin(issuer_url, doc["token_endpoint"], "token_endpoint")
     async with aiohttp.ClientSession() as s:
         async with s.post(
             doc["token_endpoint"],

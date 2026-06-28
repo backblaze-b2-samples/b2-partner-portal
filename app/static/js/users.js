@@ -108,10 +108,10 @@ function userRowHtml(u, isInactive = false) {
       ${hasPermission('users:write') ? `
         <td style="white-space:nowrap">
           ${u.is_active ? `
-            ${u.auth_source !== 'sso' ? `<button class="btn btn-sm" onclick="resetPwd('${esc(u.id)}', '${esc(u.email)}')">Reset Pwd</button>` : ''}
-            <button class="btn btn-danger btn-sm" onclick="removeUser('${esc(u.id)}', '${esc(u.email)}')">Remove</button>
+            ${u.auth_source !== 'sso' ? `<button class="btn btn-sm" data-action="reset-pwd" data-uid="${esc(u.id)}" data-email="${esc(u.email)}">Reset Pwd</button>` : ''}
+            <button class="btn btn-danger btn-sm" data-action="remove-user" data-uid="${esc(u.id)}" data-email="${esc(u.email)}">Remove</button>
           ` : `
-            <button class="btn btn-sm" onclick="restoreUser('${esc(u.id)}')">Restore</button>
+            <button class="btn btn-sm" data-action="restore-user" data-uid="${esc(u.id)}">Restore</button>
           `}
         </td>` : ''}
     </tr>
@@ -208,7 +208,20 @@ async function doBulkImport() {
 }
 
 function wireUserActions() {
-  window.removeUser = (userId, email) => {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody || tbody._wired) return;
+  tbody._wired = true;
+  tbody.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const { action, uid, email } = btn.dataset;
+    if (action === 'reset-pwd')    resetPwd(uid, email);
+    if (action === 'remove-user')  removeUser(uid, email);
+    if (action === 'restore-user') restoreUser(uid);
+  });
+}
+
+function removeUser(userId, email) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
@@ -279,63 +292,61 @@ function wireUserActions() {
         btn.textContent = 'Remove User';
       }
     });
-  };
+}
 
-  window.restoreUser = async (userId) => {
-    const res = await api(`/api/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_active: true }),
-    });
-    if (res?.ok) {
-      const data = await res.json();
-      const row = document.getElementById(`user-row-${userId}`);
-      if (row) row.outerHTML = userRowHtml(data, false);
-      wireUserActions();
-      // Update toggle count
-      const inactiveRows = document.querySelectorAll('.user-row-inactive');
-      const toggleBtn = document.getElementById('toggle-inactive-btn');
-      if (toggleBtn) {
-        if (inactiveRows.length === 0) toggleBtn.closest('div').remove();
-        else toggleBtn.textContent = `Show removed users (${inactiveRows.length})`;
-      }
+async function restoreUser(userId) {
+  const res = await api(`/api/users/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_active: true }),
+  });
+  if (res?.ok) {
+    const data = await res.json();
+    const row = document.getElementById(`user-row-${userId}`);
+    if (row) row.outerHTML = userRowHtml(data, false);
+    // Event delegation on tbody still covers the replaced row — no re-wiring needed
+    const inactiveRows = document.querySelectorAll('.user-row-inactive');
+    const toggleBtn = document.getElementById('toggle-inactive-btn');
+    if (toggleBtn) {
+      if (inactiveRows.length === 0) toggleBtn.closest('div').remove();
+      else toggleBtn.textContent = `Show removed users (${inactiveRows.length})`;
     }
-  };
+  }
+}
 
-  window.resetPwd = async (userId, email) => {
-    if (!confirm(`Generate a password reset link for ${email}?`)) return;
-    const res = await api(`/api/users/${userId}/reset-password`, { method: 'POST' });
-    const data = await res?.json();
-    if (res?.ok) {
-      const fullUrl = `${location.origin}${data.reset_url}`;
-      const overlay = document.createElement('div');
-      overlay.className = 'modal-overlay';
-      overlay.innerHTML = `
-        <div class="modal" style="max-width:560px">
-          <div class="modal-title">Password Reset Link</div>
-          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px">
-            Send this link to <strong>${esc(email)}</strong> out-of-band (email, Slack, etc.).
-            It expires in <strong>1 hour</strong> and can only be used once.
-          </p>
-          <div class="alert alert-warning" style="font-size:0.82rem;margin-bottom:16px">
-            ⚠️ Do not share this link in a channel where others can see it.
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" class="form-input" id="reset-url-input"
-              value="${esc(fullUrl)}" readonly style="font-family:monospace;font-size:0.8rem;flex:1">
-            <button class="btn" id="copy-reset-btn">Copy</button>
-          </div>
-          <div class="modal-actions" style="margin-top:20px">
-            <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Done</button>
-          </div>
+async function resetPwd(userId, email) {
+  if (!confirm(`Generate a password reset link for ${email}?`)) return;
+  const res = await api(`/api/users/${userId}/reset-password`, { method: 'POST' });
+  const data = await res?.json();
+  if (res?.ok) {
+    const fullUrl = `${location.origin}${data.reset_url}`;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:560px">
+        <div class="modal-title">Password Reset Link</div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px">
+          Send this link to <strong>${esc(email)}</strong> out-of-band (email, Slack, etc.).
+          It expires in <strong>1 hour</strong> and can only be used once.
+        </p>
+        <div class="alert alert-warning" style="font-size:0.82rem;margin-bottom:16px">
+          ⚠️ Do not share this link in a channel where others can see it.
         </div>
-      `;
-      document.body.appendChild(overlay);
-      overlay.querySelector('#reset-url-input').select();
-      overlay.querySelector('#copy-reset-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(fullUrl).then(() => {
-          overlay.querySelector('#copy-reset-btn').textContent = 'Copied!';
-        });
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" class="form-input" id="reset-url-input"
+            value="${esc(fullUrl)}" readonly style="font-family:monospace;font-size:0.8rem;flex:1">
+          <button class="btn" id="copy-reset-btn">Copy</button>
+        </div>
+        <div class="modal-actions" style="margin-top:20px">
+          <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Done</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#reset-url-input').select();
+    overlay.querySelector('#copy-reset-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        overlay.querySelector('#copy-reset-btn').textContent = 'Copied!';
       });
-    }
-  };
+    });
+  }
 }

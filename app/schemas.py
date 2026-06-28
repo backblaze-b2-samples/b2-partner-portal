@@ -1,7 +1,8 @@
 """Pydantic request/response models."""
 from __future__ import annotations
+import re
 from typing import Any, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ── API call inspector (self-documenting) ────────────────────────────────────
@@ -44,10 +45,22 @@ class MeResponse(BaseModel):
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 
+_EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]+$")
+_ROLE_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+
+
 class UserCreate(BaseModel):
     email: str
     password: str = Field(min_length=12, description="Minimum 12 characters")
     role_id: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not _EMAIL_RE.match(v):
+            raise ValueError("Invalid email address")
+        return v
 
 
 class UserUpdate(BaseModel):
@@ -76,10 +89,17 @@ class BulkImportResult(BaseModel):
 # ── Roles ─────────────────────────────────────────────────────────────────────
 
 class RoleCreate(BaseModel):
-    id: str                  # caller supplies slug e.g. "billing"
+    id: str = Field(description="Role slug — lowercase alphanumeric, hyphens, underscores, max 64 chars")
     name: str
     description: str = ""
     permissions: list[str]
+
+    @field_validator("id")
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        if not _ROLE_ID_RE.match(v):
+            raise ValueError("Role ID must be lowercase alphanumeric with hyphens/underscores only (max 64 chars)")
+        return v
 
 
 class RoleUpdate(BaseModel):
