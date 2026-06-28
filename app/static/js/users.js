@@ -60,7 +60,7 @@ bob@example.com,viewer,</pre>
         </div>
         <div id="bulk-result"></div>
         <div class="modal-actions">
-          <button class="btn" onclick="document.getElementById('bulk-modal').style.display='none'">Cancel</button>
+          <button class="btn" id="bulk-cancel-btn">Cancel</button>
           <button class="btn btn-primary" id="bulk-submit-btn">Import</button>
         </div>
       </div>
@@ -83,6 +83,9 @@ bob@example.com,viewer,</pre>
     document.getElementById('add-user-btn').addEventListener('click', () => showAddForm(roles));
     document.getElementById('bulk-btn').addEventListener('click', () => {
       document.getElementById('bulk-modal').style.display = 'flex';
+    });
+    document.getElementById('bulk-cancel-btn').addEventListener('click', () => {
+      document.getElementById('bulk-modal').style.display = 'none';
     });
     document.getElementById('bulk-submit-btn').addEventListener('click', doBulkImport);
     wireUserActions();
@@ -142,11 +145,14 @@ function showAddForm(roles) {
       </div>
       <div class="flex-gap">
         <button class="btn btn-primary" id="create-user-btn">Create User</button>
-        <button class="btn" onclick="document.getElementById('user-form-area').innerHTML=''">Cancel</button>
+        <button class="btn" id="cancel-create-user-btn">Cancel</button>
       </div>
     </div>
   `;
   document.getElementById('create-user-btn').addEventListener('click', doCreateUser);
+  document.getElementById('cancel-create-user-btn').addEventListener('click', () => {
+    document.getElementById('user-form-area').innerHTML = '';
+  });
 }
 
 async function doCreateUser() {
@@ -202,8 +208,11 @@ async function doBulkImport() {
   const modalActions = document.querySelector('#bulk-modal .modal-actions');
   if (modalActions) {
     modalActions.innerHTML = `
-      <button class="btn btn-primary" onclick="document.getElementById('bulk-modal').style.display='none'">Done</button>
+      <button class="btn btn-primary" id="bulk-done-btn">Done</button>
     `;
+    document.getElementById('bulk-done-btn')?.addEventListener('click', () => {
+      document.getElementById('bulk-modal').style.display = 'none';
+    });
   }
 }
 
@@ -236,19 +245,20 @@ function removeUser(userId, email) {
         </div>
         <div id="remove-user-error"></div>
         <div class="modal-actions">
-          <button class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+          <button class="btn" id="cancel-remove-user-btn">Cancel</button>
           <button class="btn btn-danger" id="confirm-remove-btn">Remove User</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
+    overlay.querySelector('#cancel-remove-user-btn').addEventListener('click', () => overlay.remove());
 
     overlay.querySelector('#confirm-remove-btn').addEventListener('click', async () => {
       const btn = overlay.querySelector('#confirm-remove-btn');
       btn.disabled = true;
       btn.textContent = 'Removing…';
 
-      const res = await api(`/api/users/${userId}`, { method: 'DELETE' });
+      const res = await api(`/api/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
       if (res?.ok) {
         overlay.remove();
         const row = document.getElementById(`user-row-${userId}`);
@@ -295,7 +305,7 @@ function removeUser(userId, email) {
 }
 
 async function restoreUser(userId) {
-  const res = await api(`/api/users/${userId}`, {
+  const res = await api(`/api/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ is_active: true }),
   });
@@ -315,7 +325,7 @@ async function restoreUser(userId) {
 
 async function resetPwd(userId, email) {
   if (!confirm(`Generate a password reset link for ${email}?`)) return;
-  const res = await api(`/api/users/${userId}/reset-password`, { method: 'POST' });
+  const res = await api(`/api/users/${encodeURIComponent(userId)}/reset-password`, { method: 'POST' });
   const data = await res?.json();
   if (res?.ok) {
     const fullUrl = `${location.origin}${data.reset_url}`;
@@ -337,11 +347,12 @@ async function resetPwd(userId, email) {
           <button class="btn" id="copy-reset-btn">Copy</button>
         </div>
         <div class="modal-actions" style="margin-top:20px">
-          <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">Done</button>
+          <button class="btn btn-primary" id="reset-done-btn">Done</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
+    overlay.querySelector('#reset-done-btn').addEventListener('click', () => overlay.remove());
     overlay.querySelector('#reset-url-input').select();
     overlay.querySelector('#copy-reset-btn').addEventListener('click', () => {
       navigator.clipboard.writeText(fullUrl).then(() => {

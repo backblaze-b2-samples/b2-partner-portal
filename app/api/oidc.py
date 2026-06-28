@@ -284,8 +284,11 @@ async def save_oidc_config(
     # Strip if user accidentally pasted the full discovery URL
     if issuer_url.endswith("/.well-known/openid-configuration"):
         issuer_url = issuer_url[: -len("/.well-known/openid-configuration")]
-    if issuer_url and not issuer_url.startswith("https://"):
-        raise HTTPException(400, "OIDC issuer_url must use HTTPS")
+    if issuer_url:
+        try:
+            oidc.validate_issuer_url(issuer_url)
+        except RuntimeError as e:
+            raise HTTPException(400, str(e))
     await set_config("oidc_config", {
         "enabled":         body.enabled,
         "issuer_url":      issuer_url,

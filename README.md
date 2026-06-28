@@ -118,6 +118,7 @@ All configuration is via environment variables or a `.env` file in the project r
 | `CREDENTIAL_VAULT_KEY` | _(none)_ | Fernet encryption key. Required when vault is enabled. |
 | `API_DOCS_ENABLED` | `false` | Enable Swagger UI (`/api/docs`) and ReDoc (`/api/redoc`). Off by default — exposes full API schema to authenticated users. Enable only for development. |
 | `API_INSPECTOR_ENABLED` | `false` | Show the **B2 API Call** inspector panels in the UI. Each action that calls Backblaze will display the raw request and response inline. Useful for demos and learning how the Partner API works. Off by default. |
+| `OIDC_ALLOWED_ISSUER_HOSTS` | _(empty)_ | Optional comma-separated exact host allow-list for OIDC issuers, e.g. `login.microsoftonline.com,sso.example.com`. Recommended for production SSO deployments. |
 
 ---
 

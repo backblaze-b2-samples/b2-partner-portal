@@ -4,6 +4,7 @@ Works with any compliant provider: Azure Entra ID, Google Workspace, Okta,
 Auth0, Keycloak, AWS Cognito, etc.
 """
 from __future__ import annotations
+import ipaddress
 import time
 from typing import Any
 from urllib.parse import urlencode, urlparse
@@ -12,10 +13,50 @@ import aiohttp
 import jwt as _jwt
 from jwt import PyJWKClient
 
+from app.config import settings
+
 # Cache: keyed by URL, value is (data, fetched_at_epoch)
 _discovery_cache: dict[str, tuple[dict, float]] = {}
 _jwks_clients:    dict[str, PyJWKClient] = {}
 _DISCOVERY_TTL = 3600   # re-fetch discovery doc at most once per hour
+
+
+def _allowed_issuer_hosts() -> set[str]:
+    return {h.strip().lower() for h in settings.oidc_allowed_issuer_hosts.split(",") if h.strip()}
+
+
+def validate_issuer_url(issuer_url: str) -> None:
+    """Validate issuer before discovery to reduce SSRF exposure."""
+    parsed = urlparse(issuer_url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not host:
+        raise RuntimeError("OIDC issuer_url must be an HTTPS URL with a host")
+    if parsed.username or parsed.password:
+        raise RuntimeError("OIDC issuer_url must not contain credentials")
+    if parsed.query or parsed.fragment:
+        raise RuntimeError("OIDC issuer_url must not contain query strings or fragments")
+
+    allowed_hosts = _allowed_issuer_hosts()
+    if allowed_hosts:
+        if host not in allowed_hosts:
+            raise RuntimeError(f"OIDC issuer host '{host}' is not in OIDC_ALLOWED_ISSUER_HOSTS")
+        return
+
+    if host in {"localhost"} or host.endswith((".localhost", ".local")):
+        raise RuntimeError("OIDC issuer_url must not target a local host")
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        raise RuntimeError("OIDC issuer_url must not target a private or local IP address")
 
 
 def _require_same_origin(issuer_url: str, endpoint_url: str, label: str) -> None:
@@ -43,10 +84,14 @@ async def _fetch_json(url: str) -> dict:
 async def get_discovery(issuer_url: str) -> dict:
     """Fetch and cache the OIDC discovery document for the given issuer."""
     issuer_url = issuer_url.rstrip("/")
+    validate_issuer_url(issuer_url)
     cached = _discovery_cache.get(issuer_url)
     if cached and time.time() - cached[1] < _DISCOVERY_TTL:
         return cached[0]
     doc = await _fetch_json(f"{issuer_url}/.well-known/openid-configuration")
+    _require_same_origin(issuer_url, doc["authorization_endpoint"], "authorization_endpoint")
+    _require_same_origin(issuer_url, doc["token_endpoint"], "token_endpoint")
+    _require_same_origin(issuer_url, doc["jwks_uri"], "jwks_uri")
     _discovery_cache[issuer_url] = (doc, time.time())
     return doc
 
@@ -61,7 +106,6 @@ def _get_jwks_client(jwks_uri: str) -> PyJWKClient:
 
 async def build_auth_url(issuer_url: str, client_id: str, redirect_uri: str, state: str) -> str:
     doc = await get_discovery(issuer_url)
-    _require_same_origin(issuer_url, doc["authorization_endpoint"], "authorization_endpoint")
     params = {
         "client_id":     client_id,
         "response_type": "code",
@@ -81,7 +125,6 @@ async def exchange_code(
     code: str,
 ) -> dict[str, Any]:
     doc = await get_discovery(issuer_url)
-    _require_same_origin(issuer_url, doc["token_endpoint"], "token_endpoint")
     async with aiohttp.ClientSession() as s:
         async with s.post(
             doc["token_endpoint"],

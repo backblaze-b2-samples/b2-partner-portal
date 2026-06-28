@@ -92,12 +92,15 @@ function showRoleForm(existing = null) {
         <button class="btn btn-primary" id="save-role-btn">
           ${existing ? 'Save Changes' : 'Create Role'}
         </button>
-        <button class="btn" onclick="document.getElementById('role-form-area').innerHTML=''">Cancel</button>
+        <button class="btn" id="cancel-role-btn">Cancel</button>
       </div>
     </div>
   `;
 
   document.getElementById('save-role-btn').addEventListener('click', () => saveRole(existing));
+  document.getElementById('cancel-role-btn').addEventListener('click', () => {
+    document.getElementById('role-form-area').innerHTML = '';
+  });
 }
 
 async function saveRole(existing) {
@@ -129,7 +132,7 @@ async function saveRole(existing) {
 
 async function deleteRole(roleId) {
   if (!confirm(`Delete role "${roleId}"? This will fail if any users are assigned to it.`)) return;
-  const res = await api(`/api/roles/${roleId}`, { method: 'DELETE' });
+  const res = await api(`/api/roles/${encodeURIComponent(roleId)}`, { method: 'DELETE' });
   const data = await res?.json().catch(() => ({}));
   if (res?.ok) {
     document.getElementById(`role-card-${roleId}`)?.remove();

@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     credential_vault_enabled: bool = False
     credential_vault_key: Optional[str] = None
 
+    # Optional comma-separated exact host allow-list for OIDC issuers.
+    # Example: login.microsoftonline.com,accounts.google.com,sso.example.com
+    oidc_allowed_issuer_hosts: str = ""
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "portal.db"

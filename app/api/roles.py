@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.auth import CurrentUser
 from app.database import get_db
-from app.rbac import ROLES_READ, ROLES_WRITE, require_permission
+from app.rbac import ALL_PERMISSIONS, ROLES_READ, ROLES_WRITE, require_permission
 from app.schemas import RoleCreate, RoleResponse, RoleUpdate
 
 router = APIRouter()
@@ -14,6 +14,15 @@ router = APIRouter()
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _check_permissions_assignable(permissions: list[str], current_user: CurrentUser) -> None:
+    requested = set(permissions)
+    unknown = requested.difference(ALL_PERMISSIONS)
+    if unknown:
+        raise HTTPException(400, f"Unknown permission(s): {', '.join(sorted(unknown))}")
+    if not requested.issubset(current_user.permissions):
+        raise HTTPException(403, "Cannot create or update a role with permissions exceeding your own")
 
 
 @router.get("", response_model=list[RoleResponse])
@@ -36,7 +45,8 @@ async def list_roles(_: CurrentUser = require_permission(ROLES_READ)):
 
 
 @router.post("", response_model=RoleResponse, status_code=201)
-async def create_role(body: RoleCreate, _: CurrentUser = require_permission(ROLES_WRITE)):
+async def create_role(body: RoleCreate, current_user: CurrentUser = require_permission(ROLES_WRITE)):
+    _check_permissions_assignable(body.permissions, current_user)
     now = _now()
     async with get_db() as db:
         cursor = await db.execute("SELECT id FROM roles WHERE id=?", [body.id])
@@ -57,7 +67,9 @@ async def create_role(body: RoleCreate, _: CurrentUser = require_permission(ROLE
 
 @router.patch("/{role_id}", response_model=RoleResponse)
 async def update_role(role_id: str, body: RoleUpdate,
-                       _: CurrentUser = require_permission(ROLES_WRITE)):
+                       current_user: CurrentUser = require_permission(ROLES_WRITE)):
+    if body.permissions is not None:
+        _check_permissions_assignable(body.permissions, current_user)
     async with get_db() as db:
         cursor = await db.execute("SELECT * FROM roles WHERE id=?", [role_id])
         row = await cursor.fetchone()
