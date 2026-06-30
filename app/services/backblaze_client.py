@@ -352,7 +352,7 @@ class BackblazeClient:
         Partner API endpoint: {groupsApiUrl}/b2api/v3/b2_create_group_member
         Creates a new Backblaze account and adds it to the specified Group.
         Returns applicationKeyId + applicationKey for the new account (shown once).
-        Region options: us-east, us-west, eu-central.
+        Region options: us-east, us-west, eu-central, ca-east.
         408/429/503 retried automatically.
         """
         auth = await self._get_auth()

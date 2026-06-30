@@ -60,11 +60,12 @@ export async function renderMembers(page) {
         <div class="modal-title">Bulk Import Members via Partner API</div>
         <p class="text-muted" style="margin-bottom:16px;font-size:0.85rem">
           CSV must have an <code>email</code> column. <code>region</code> is optional (defaults to <code>us-west</code>).<br>
+          Valid regions: <code>us-west</code>, <code>us-east</code>, <code>eu-central</code>, <code>ca-east</code>.<br>
           Each row calls <code>b2_create_group_member</code> — credentials are returned in the results.
         </p>
         <pre class="api-code" style="margin-bottom:16px">email,region
 alice@example.com,us-west
-bob@example.com,eu-central</pre>
+bob@example.com,ca-east</pre>
         <div class="form-group">
           <label class="form-label">CSV File</label>
           <input type="file" id="bulk-csv-file" accept=".csv,text/csv" class="form-input" style="padding:6px">
@@ -449,15 +450,20 @@ async function showAddForm(groupId) {
           <option value="us-west">us-west</option>
           <option value="us-east">us-east</option>
           <option value="eu-central">eu-central</option>
+          <option value="ca-east">ca-east</option>
         </select>
         <div class="form-hint">The B2 data residency region for this account. Groups support up to 5,000 members.</div>
       </div>
       <div class="flex-gap">
         <button class="btn btn-primary" id="submit-add-btn">Create Member</button>
-        <button class="btn" onclick="document.getElementById('add-member-form').style.display='none'">Cancel</button>
+        <button class="btn" id="cancel-add-member-btn">Cancel</button>
       </div>
     </div>
   `;
+
+  document.getElementById('cancel-add-member-btn').addEventListener('click', () => {
+    document.getElementById('add-member-form').style.display = 'none';
+  });
 
   document.getElementById('submit-add-btn').addEventListener('click', async () => {
     const email = document.getElementById('new-email').value.trim();
