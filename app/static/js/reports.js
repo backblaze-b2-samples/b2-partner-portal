@@ -401,6 +401,8 @@ async function loadData(page) {
       <div class="alert alert-warning">No cached data found for this date range.
         ${rs.data.missing_dates.length ? renderFetchMissingBtn(rs.data) : ''}
       </div>`;
+    const missingBtn = body.querySelector('#fetch-missing-btn');
+    if (missingBtn) missingBtn.addEventListener('click', () => fetchMissing(body));
     return;
   }
 
