@@ -33,7 +33,7 @@ async def fetch_report_file(client, report_date: str, file_type: str,
         raise RuntimeError("Report bucket not configured. Go to Settings.")
 
     bucket = bucket_cfg.get("bucket_name", "")
-    prefix = bucket_cfg.get("prefix", "daily-reports/")
+    prefix = bucket_cfg.get("prefix", "")
 
     account_id = bucket_cfg.get("account_id", "")
 

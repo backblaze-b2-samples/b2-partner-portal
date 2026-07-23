@@ -31,7 +31,7 @@ async def get_settings(_: CurrentUser = require_permission(SETTINGS_READ)):
         application_key_id=creds.get("application_key_id"),
         application_key_masked=masked,
         report_bucket=bucket_cfg.get("bucket_name"),
-        report_prefix=bucket_cfg.get("prefix", "daily-reports/"),
+        report_prefix=bucket_cfg.get("prefix", ""),
         configured=bool(creds.get("account_id") and creds.get("application_key_id")),
     )
 

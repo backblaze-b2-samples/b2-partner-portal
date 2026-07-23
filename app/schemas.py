@@ -123,7 +123,7 @@ class SettingsUpdate(BaseModel):
     application_key_id: str
     application_key: str
     report_bucket: Optional[str] = None
-    report_prefix: Optional[str] = "daily-reports/"
+    report_prefix: Optional[str] = ""
 
 
 class SettingsResponse(BaseModel):
