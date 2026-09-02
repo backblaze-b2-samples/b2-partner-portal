@@ -189,7 +189,11 @@ const VIEWS = {
 let _currentView = null;
 
 async function navigate(view) {
-  if (!VIEWS[view]) view = 'dashboard';
+  let render = Object.prototype.hasOwnProperty.call(VIEWS, view) ? VIEWS[view] : null;
+  if (typeof render !== 'function') {
+    view = 'dashboard';
+    render = VIEWS.dashboard;
+  }
   _currentView = view;
 
   // Update active nav link
@@ -200,7 +204,7 @@ async function navigate(view) {
   const content = document.getElementById('page-content');
   content.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
 
-  await VIEWS[view](content);
+  await render(content);
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
