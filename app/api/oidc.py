@@ -5,6 +5,7 @@ Workspace, Okta, Auth0, Keycloak, AWS Cognito, etc.
 """
 from __future__ import annotations
 import json
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Body, HTTPException, Query, Request
@@ -23,6 +24,7 @@ from app.schemas import (
 from app.services import oidc_client as oidc
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 _STATE_TTL_MINUTES = 10
 _OIDC_PROVIDER_ERROR_CODES = {
@@ -131,11 +133,9 @@ async def oidc_callback(
         claims = await oidc.decode_id_token(
             tokens["id_token"], cfg["issuer_url"], cfg["client_id"],
         )
-    except RuntimeError as e:
-        return RedirectResponse(
-            f"/login?sso=1&error=token_error&error_description={quote(str(e))}",
-            status_code=302,
-        )
+    except RuntimeError:
+        log.exception("OIDC token exchange or ID token validation failed")
+        return RedirectResponse("/login?sso=1&error=token_error", status_code=302)
 
     email = oidc.extract_email(claims)
     if not email:

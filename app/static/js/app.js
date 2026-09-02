@@ -174,26 +174,35 @@ import { renderSettings } from './settings.js';
 import { renderCredentials } from './credentials.js';
 import { renderAudit } from './audit.js';
 
-const VIEWS = {
-  dashboard:   renderDashboard,
-  groups:      renderGroups,
-  members:     renderMembers,
-  reports:     renderReports,
-  users:       renderUsers,
-  roles:       renderRoles,
-  settings:    renderSettings,
-  credentials: renderCredentials,
-  audit:       renderAudit,
-};
-
 let _currentView = null;
 
-async function navigate(view) {
-  let render = Object.prototype.hasOwnProperty.call(VIEWS, view) ? VIEWS[view] : null;
-  if (typeof render !== 'function') {
-    view = 'dashboard';
-    render = VIEWS.dashboard;
+function getViewRenderer(view) {
+  switch (view) {
+    case 'groups':
+      return [view, renderGroups];
+    case 'members':
+      return [view, renderMembers];
+    case 'reports':
+      return [view, renderReports];
+    case 'users':
+      return [view, renderUsers];
+    case 'roles':
+      return [view, renderRoles];
+    case 'settings':
+      return [view, renderSettings];
+    case 'credentials':
+      return [view, renderCredentials];
+    case 'audit':
+      return [view, renderAudit];
+    case 'dashboard':
+    default:
+      return ['dashboard', renderDashboard];
   }
+}
+
+async function navigate(view) {
+  const [currentView, render] = getViewRenderer(view);
+  view = currentView;
   _currentView = view;
 
   // Update active nav link
