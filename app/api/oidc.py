@@ -5,10 +5,9 @@ Workspace, Okta, Auth0, Keycloak, AWS Cognito, etc.
 """
 from __future__ import annotations
 import json
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote
-
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
@@ -25,8 +24,20 @@ from app.schemas import (
 from app.services import oidc_client as oidc
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 _STATE_TTL_MINUTES = 10
+_OIDC_PROVIDER_ERROR_CODES = {
+    "access_denied",
+    "account_selection_required",
+    "consent_required",
+    "interaction_required",
+    "invalid_request",
+    "invalid_scope",
+    "login_required",
+    "server_error",
+    "temporarily_unavailable",
+}
 
 
 def _now() -> str:
@@ -92,10 +103,8 @@ async def oidc_callback(
     error_description: str | None = Query(None),
 ):
     if error:
-        return RedirectResponse(
-            f"/login?sso=1&error={quote(str(error))}&error_description={quote(str(error_description or ''))}",
-            status_code=302,
-        )
+        error_code = str(error) if str(error) in _OIDC_PROVIDER_ERROR_CODES else "oidc_error"
+        return RedirectResponse(f"/login?sso=1&error={error_code}", status_code=302)
 
     if not code or not state:
         return RedirectResponse("/login?sso=1&error=missing_params", status_code=302)
@@ -124,11 +133,9 @@ async def oidc_callback(
         claims = await oidc.decode_id_token(
             tokens["id_token"], cfg["issuer_url"], cfg["client_id"],
         )
-    except RuntimeError as e:
-        return RedirectResponse(
-            f"/login?sso=1&error=token_error&error_description={quote(str(e))}",
-            status_code=302,
-        )
+    except RuntimeError:
+        log.exception("OIDC token exchange or ID token validation failed")
+        return RedirectResponse("/login?sso=1&error=token_error", status_code=302)
 
     email = oidc.extract_email(claims)
     if not email:
